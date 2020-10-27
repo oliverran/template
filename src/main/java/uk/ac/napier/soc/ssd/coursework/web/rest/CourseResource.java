@@ -3,6 +3,7 @@ package uk.ac.napier.soc.ssd.coursework.web.rest;
 import com.codahale.metrics.annotation.Timed;
 import org.hibernate.Session;
 import org.hibernate.query.Query;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.WebDataBinder;
 import uk.ac.napier.soc.ssd.coursework.domain.Course;
 import uk.ac.napier.soc.ssd.coursework.domain.validators.CourseValidator;
@@ -106,6 +107,7 @@ public class CourseResource {
      */
     @GetMapping("/courses")
     @Timed
+    @PreAuthorize("hasPermission(course,'VIEW_COURSES')")
     public List<Course> getAllCourses(@RequestParam(required = false, defaultValue = "false") boolean eagerload) {
         log.debug("REST request to get all Courses");
         return courseRepository.findAllWithEagerRelationships();

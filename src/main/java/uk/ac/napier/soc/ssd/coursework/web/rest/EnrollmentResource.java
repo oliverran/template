@@ -3,6 +3,10 @@ package uk.ac.napier.soc.ssd.coursework.web.rest;
 import com.codahale.metrics.annotation.Timed;
 import org.hibernate.Session;
 import org.hibernate.query.Query;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.access.prepost.PostFilter;
+import org.springframework.security.access.prepost.PreAuthorize;
+import uk.ac.napier.soc.ssd.coursework.abac.security.spring.ContextAwarePolicyEnforcement;
 import uk.ac.napier.soc.ssd.coursework.domain.Enrollment;
 import uk.ac.napier.soc.ssd.coursework.repository.EnrollmentRepository;
 import uk.ac.napier.soc.ssd.coursework.repository.HibernateUtil;
@@ -40,6 +44,9 @@ public class EnrollmentResource {
 
     private final EnrollmentSearchRepository enrollmentSearchRepository;
 
+    @Autowired
+    private ContextAwarePolicyEnforcement policy;
+
     public EnrollmentResource(EnrollmentRepository enrollmentRepository, EnrollmentSearchRepository enrollmentSearchRepository) {
         this.enrollmentRepository = enrollmentRepository;
         this.enrollmentSearchRepository = enrollmentSearchRepository;
@@ -54,6 +61,7 @@ public class EnrollmentResource {
      */
     @PostMapping("/enrollments")
     @Timed
+    @PreAuthorize("hasPermission(#enrollment, 'CREATE_ENROLLMENT')")
     public ResponseEntity<Enrollment> createEnrollment(@RequestBody Enrollment enrollment) throws URISyntaxException {
         log.debug("REST request to save Enrollment : {}", enrollment);
         if (enrollment.getId() != null) {
@@ -77,6 +85,7 @@ public class EnrollmentResource {
      */
     @PutMapping("/enrollments")
     @Timed
+    @PreAuthorize("hasPermission(#enrollment, 'UPDATE_ENROLLMENT')")
     public ResponseEntity<Enrollment> updateEnrollment(@RequestBody Enrollment enrollment) throws URISyntaxException {
         log.debug("REST request to update Enrollment : {}", enrollment);
         if (enrollment.getId() == null) {
@@ -96,6 +105,7 @@ public class EnrollmentResource {
      */
     @GetMapping("/enrollments")
     @Timed
+    @PostFilter("hasPermission(filterObject, 'VIEW_ENROLLMENTS')")
     public List<Enrollment> getAllEnrollments(@RequestParam(required = false, defaultValue = "false") boolean eagerload) {
         log.debug("REST request to get all Enrollments");
         return enrollmentRepository.findAllWithEagerRelationships();
@@ -112,6 +122,7 @@ public class EnrollmentResource {
     public ResponseEntity<Enrollment> getEnrollment(@PathVariable Long id) {
         log.debug("REST request to get Enrollment : {}", id);
         Optional<Enrollment> enrollment = enrollmentRepository.findOneWithEagerRelationships(id);
+        policy.checkPermission(enrollment.get(), "VIEW_ENROLLMENT");
         return ResponseUtil.wrapOrNotFound(enrollment);
     }
 
@@ -125,7 +136,7 @@ public class EnrollmentResource {
     @Timed
     public ResponseEntity<Void> deleteEnrollment(@PathVariable Long id) {
         log.debug("REST request to delete Enrollment : {}", id);
-
+        policy.checkPermission(enrollmentRepository.findOneWithEagerRelationships(id),"DELETE_ENROLLMENT");
         enrollmentRepository.deleteById(id);
         enrollmentSearchRepository.deleteById(id);
         return ResponseEntity.ok().headers(HeaderUtil.createEntityDeletionAlert(ENTITY_NAME, id.toString())).build();
@@ -140,6 +151,7 @@ public class EnrollmentResource {
      */
     @GetMapping("/_search/enrollments")
     @Timed
+    @PostFilter("hasPermission(filterObject, 'SEARCH_ENROLLMENTS')")
     public List<Enrollment> searchEnrollments(@RequestParam String query) {
         log.debug("REST request to search Enrollments for query {}", query);
         Session session = HibernateUtil.getSession();
