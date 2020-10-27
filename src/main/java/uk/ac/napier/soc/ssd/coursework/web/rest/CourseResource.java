@@ -3,8 +3,11 @@ package uk.ac.napier.soc.ssd.coursework.web.rest;
 import com.codahale.metrics.annotation.Timed;
 import org.hibernate.Session;
 import org.hibernate.query.Query;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.access.prepost.PostFilter;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.WebDataBinder;
+import uk.ac.napier.soc.ssd.coursework.abac.security.spring.ContextAwarePolicyEnforcement;
 import uk.ac.napier.soc.ssd.coursework.domain.Course;
 import uk.ac.napier.soc.ssd.coursework.domain.validators.CourseValidator;
 import uk.ac.napier.soc.ssd.coursework.repository.CourseRepository;
@@ -47,10 +50,15 @@ public class CourseResource {
 
     private final CourseSearchRepository courseSearchRepository;
 
+
+
     @InitBinder
     protected void initBinder(WebDataBinder binder) {
         binder.addValidators(new CourseValidator());
     }
+
+    @Autowired
+    private ContextAwarePolicyEnforcement policy;
 
     public CourseResource(CourseRepository courseRepository, CourseSearchRepository courseSearchRepository) {
         this.courseRepository = courseRepository;
@@ -66,6 +74,7 @@ public class CourseResource {
      */
     @PostMapping("/courses")
     @Timed
+    @PreAuthorize("hasPermission(#course, 'CREATE_COURSE')")
     public ResponseEntity<Course> createCourse(@Valid @RequestBody Course course) throws URISyntaxException {
         log.debug("REST request to save Course : {}", course);
         if (course.getId() != null) {
@@ -88,6 +97,7 @@ public class CourseResource {
      */
     @PutMapping("/courses")
     @Timed
+    @PreAuthorize("hasPermission(#course, 'UPDATE_COURSE')")
     public ResponseEntity<Course> updateCourse(@Valid @RequestBody Course course) throws URISyntaxException {
         log.debug("REST request to update Course : {}", course);
         if (course.getId() == null) {
@@ -107,7 +117,7 @@ public class CourseResource {
      */
     @GetMapping("/courses")
     @Timed
-    @PreAuthorize("hasPermission(course,'VIEW_COURSES')")
+    @PostFilter("hasPermission(filterObject,'VIEW_COURSES')")
     public List<Course> getAllCourses(@RequestParam(required = false, defaultValue = "false") boolean eagerload) {
         log.debug("REST request to get all Courses");
         return courseRepository.findAllWithEagerRelationships();
@@ -124,6 +134,7 @@ public class CourseResource {
     public ResponseEntity<Course> getCourse(@PathVariable Long id) {
         log.debug("REST request to get Course : {}", id);
         Optional<Course> course = courseRepository.findOneWithEagerRelationships(id);
+        policy.checkPermission(course.get(), "VIEW_COURSE");
         return ResponseUtil.wrapOrNotFound(course);
     }
 
@@ -137,7 +148,7 @@ public class CourseResource {
     @Timed
     public ResponseEntity<Void> deleteCourse(@PathVariable Long id) {
         log.debug("REST request to delete Course : {}", id);
-
+        policy.checkPermission(courseRepository.findOneWithEagerRelationships(id),"DELETE_COURSE");
         courseRepository.deleteById(id);
         return ResponseEntity.ok().headers(HeaderUtil.createEntityDeletionAlert(ENTITY_NAME, id.toString())).build();
     }
@@ -151,6 +162,7 @@ public class CourseResource {
      */
     @GetMapping("/_search/courses")
     @Timed
+    @PostFilter("hasPermission(filterObject, 'SEARCH_COURSES')")
     public List<Course> searchCourses(@RequestParam String query) {
         log.debug("REST request to search Courses for query {}", query);
 

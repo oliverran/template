@@ -1,6 +1,10 @@
 package uk.ac.napier.soc.ssd.coursework.web.rest;
 
 import com.codahale.metrics.annotation.Timed;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.access.prepost.PostFilter;
+import org.springframework.security.access.prepost.PreAuthorize;
+import uk.ac.napier.soc.ssd.coursework.abac.security.spring.ContextAwarePolicyEnforcement;
 import uk.ac.napier.soc.ssd.coursework.domain.Program;
 import uk.ac.napier.soc.ssd.coursework.repository.ProgramRepository;
 import uk.ac.napier.soc.ssd.coursework.repository.search.ProgramSearchRepository;
@@ -39,6 +43,9 @@ public class ProgramResource {
 
     private final ProgramSearchRepository programSearchRepository;
 
+    @Autowired
+    private ContextAwarePolicyEnforcement policy;
+
     public ProgramResource(ProgramRepository programRepository, ProgramSearchRepository programSearchRepository) {
         this.programRepository = programRepository;
         this.programSearchRepository = programSearchRepository;
@@ -53,6 +60,7 @@ public class ProgramResource {
      */
     @PostMapping("/programs")
     @Timed
+    @PreAuthorize("hasPermission(#program, 'CREATE_PROGRAM')")
     public ResponseEntity<Program> createProgram(@Valid @RequestBody Program program) throws URISyntaxException {
         log.debug("REST request to save Program : {}", program);
         if (program.getId() != null) {
@@ -76,6 +84,7 @@ public class ProgramResource {
      */
     @PutMapping("/programs")
     @Timed
+    @PreAuthorize("hasPermission(#program, 'UPDATE_PROGRAM')")
     public ResponseEntity<Program> updateProgram(@Valid @RequestBody Program program) throws URISyntaxException {
         log.debug("REST request to update Program : {}", program);
         if (program.getId() == null) {
@@ -94,6 +103,7 @@ public class ProgramResource {
      */
     @GetMapping("/programs")
     @Timed
+    @PostFilter("hasPermission(filterObject, 'VIEW_PROGRAMS')")
     public List<Program> getAllPrograms() {
         log.debug("REST request to get all Programs");
         return programRepository.findAll();
@@ -110,6 +120,7 @@ public class ProgramResource {
     public ResponseEntity<Program> getProgram(@PathVariable Long id) {
         log.debug("REST request to get Program : {}", id);
         Optional<Program> program = programRepository.findById(id);
+        policy.checkPermission(program.get(), "VIEW_PROGRAM");
         return ResponseUtil.wrapOrNotFound(program);
     }
 
@@ -123,7 +134,7 @@ public class ProgramResource {
     @Timed
     public ResponseEntity<Void> deleteProgram(@PathVariable Long id) {
         log.debug("REST request to delete Program : {}", id);
-
+        policy.checkPermission(programRepository.findById(id),"DELETE_PROGRAM");
         programRepository.deleteById(id);
         programSearchRepository.deleteById(id);
         return ResponseEntity.ok().headers(HeaderUtil.createEntityDeletionAlert(ENTITY_NAME, id.toString())).build();
@@ -138,6 +149,7 @@ public class ProgramResource {
      */
     @GetMapping("/_search/programs")
     @Timed
+    @PostFilter("hasPermission(filterObject, 'SEARCH_ENROLLMENTS')")
     public List<Program> searchPrograms(@RequestParam String query) {
         log.debug("REST request to search Programs for query {}", query);
         // TODO: Implement the search functionality

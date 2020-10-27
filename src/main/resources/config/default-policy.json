@@ -28,6 +28,18 @@
         "description": "Users can view a program.",
         "target": "subject.authorities.![authority].contains('ROLE_USER') && action == 'VIEW_PROGRAM'",
         "condition": "true"
+},
+{
+   	"name": "User",
+        "description": "Users can view a program.",
+        "target": "subject.authorities.![authority].contains('ROLE_USER') && action == 'VIEW_COURSES'",
+        "condition": "true"
+},
+{
+   	"name": "User",
+        "description": "Users can view a program.",
+        "target": "subject.authorities.![authority].contains('ROLE_USER') && action == 'VIEW_COURSE'",
+        "condition": "true"
 }
 ]
 
