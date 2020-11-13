@@ -3,6 +3,8 @@ package uk.ac.napier.soc.ssd.coursework.web.rest;
 import com.codahale.metrics.annotation.Timed;
 import org.hibernate.Session;
 import org.hibernate.query.Query;
+import org.owasp.esapi.ESAPI;
+import org.owasp.esapi.codecs.OracleCodec;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PostFilter;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -155,7 +157,8 @@ public class EnrollmentResource {
     public List<Enrollment> searchEnrollments(@RequestParam String query) {
         log.debug("REST request to search Enrollments for query {}", query);
         Session session = HibernateUtil.getSession();
-        Query q = session.createQuery("select enrollment from Enrollment enrollment where enrollment.comments like '%" + query + "%'");
+        String qname = ESAPI.encoder().encodeForSQL(new OracleCodec(), query);
+        Query q = session.createQuery("select enrollment from Enrollment enrollment where enrollment.comments like '%" + qname + "%'");
         return q.list();
     }
 

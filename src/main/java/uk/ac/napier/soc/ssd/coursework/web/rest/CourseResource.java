@@ -3,6 +3,8 @@ package uk.ac.napier.soc.ssd.coursework.web.rest;
 import com.codahale.metrics.annotation.Timed;
 import org.hibernate.Session;
 import org.hibernate.query.Query;
+import org.owasp.esapi.ESAPI;
+import org.owasp.esapi.codecs.OracleCodec;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PostFilter;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -165,9 +167,8 @@ public class CourseResource {
     @PostFilter("hasPermission(filterObject, 'SEARCH_COURSES')")
     public List<Course> searchCourses(@RequestParam String query) {
         log.debug("REST request to search Courses for query {}", query);
-
-
-        String queryStatement = "SELECT * FROM course WHERE description like '%" + query + "%'";
+        String qname = ESAPI.encoder().encodeForSQL(new OracleCodec(), query);
+        String queryStatement = "SELECT * FROM course WHERE description like '%" + qname + "%'";
         log.info("Final SQL query {}", queryStatement);
 
         ResultSet rs = null;
