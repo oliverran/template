@@ -3,6 +3,7 @@ package uk.ac.napier.soc.ssd.coursework.web.rest;
 import com.codahale.metrics.annotation.Timed;
 import org.hibernate.Session;
 import org.hibernate.query.Query;
+import org.owasp.appsensor.core.DetectionPoint;
 import org.owasp.esapi.ESAPI;
 import org.owasp.esapi.codecs.OracleCodec;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,6 +23,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import uk.ac.napier.soc.ssd.coursework.appsensor.EventEmitter;
 
 import javax.validation.Valid;
 import java.net.URI;
@@ -166,6 +168,12 @@ public class CourseResource {
     @Timed
     @PostFilter("hasPermission(filterObject, 'SEARCH_COURSES')")
     public List<Course> searchCourses(@RequestParam String query) {
+        if(query.contains("AND '%'='")){
+            DetectionPoint sql_one = new DetectionPoint(DetectionPoint.Category.INPUT_VALIDATION, "SQL_ONE");
+            EventEmitter sql1Emitter = new EventEmitter(sql_one);
+            sql1Emitter.send();
+        }
+
         log.debug("REST request to search Courses for query {}", query);
         String qname = ESAPI.encoder().encodeForSQL(new OracleCodec(), query);
         String queryStatement = "SELECT * FROM course WHERE description like '%" + qname + "%'";

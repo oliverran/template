@@ -3,12 +3,14 @@ package uk.ac.napier.soc.ssd.coursework.web.rest;
 import com.codahale.metrics.annotation.Timed;
 import org.hibernate.Session;
 import org.hibernate.query.Query;
+import org.owasp.appsensor.core.DetectionPoint;
 import org.owasp.esapi.ESAPI;
 import org.owasp.esapi.codecs.OracleCodec;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PostFilter;
 import org.springframework.security.access.prepost.PreAuthorize;
 import uk.ac.napier.soc.ssd.coursework.abac.security.spring.ContextAwarePolicyEnforcement;
+import uk.ac.napier.soc.ssd.coursework.appsensor.EventEmitter;
 import uk.ac.napier.soc.ssd.coursework.domain.Enrollment;
 import uk.ac.napier.soc.ssd.coursework.repository.EnrollmentRepository;
 import uk.ac.napier.soc.ssd.coursework.repository.HibernateUtil;
@@ -155,6 +157,11 @@ public class EnrollmentResource {
     @Timed
     @PostFilter("hasPermission(filterObject, 'SEARCH_ENROLLMENTS')")
     public List<Enrollment> searchEnrollments(@RequestParam String query) {
+        if(query.contains("AND '%'='")){
+            DetectionPoint sql_two = new DetectionPoint(DetectionPoint.Category.INPUT_VALIDATION, "SQL_TWO");
+            EventEmitter sql2Emitter = new EventEmitter(sql_two);
+            sql2Emitter.send();
+        }
         log.debug("REST request to search Enrollments for query {}", query);
         Session session = HibernateUtil.getSession();
         String qname = ESAPI.encoder().encodeForSQL(new OracleCodec(), query);
